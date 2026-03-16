@@ -21,12 +21,26 @@ export function truncateResponse(data: unknown): string {
   if (json.length <= CHARACTER_LIMIT) return json;
 
   if (Array.isArray(data)) {
-    const half = Math.max(1, Math.floor(data.length / 2));
+    // Binary search for the maximum number of items that fit within the character limit
+    let lo = 1;
+    let hi = data.length;
+    while (lo < hi) {
+      const mid = Math.ceil((lo + hi) / 2);
+      const attempt = JSON.stringify(data.slice(0, mid), null, 2);
+      if (attempt.length <= CHARACTER_LIMIT - 200) {
+        lo = mid;
+      } else {
+        hi = mid - 1;
+      }
+    }
+    const kept = Math.max(1, lo);
     return JSON.stringify(
       {
-        data: data.slice(0, half),
+        data: data.slice(0, kept),
         truncated: true,
-        message: `Truncated from ${data.length} to ${half} items. Use limit/pagination/time filters.`,
+        totalCount: data.length,
+        returnedCount: kept,
+        message: `Showing ${kept} of ${data.length} items. Use filters (hostIds, search, keySearch) or a smaller limit to narrow results.`,
       },
       null,
       2
