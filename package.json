@@ -1,0 +1,45 @@
+{
+  "name": "@nks-hub/zabbix-mcp",
+  "version": "0.1.0",
+  "description": "MCP server for Zabbix monitoring: hosts, problems, triggers, events, items, and acknowledgements",
+  "type": "module",
+  "main": "build/index.js",
+  "bin": {
+    "zabbix-mcp": "./build/index.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "start": "node build/index.js",
+    "check": "npm run build"
+  },
+  "keywords": [
+    "mcp",
+    "zabbix",
+    "monitoring",
+    "nks-hub",
+    "model-context-protocol"
+  ],
+  "author": "NKS Hub",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nks-hub/zabbix-mcp.git"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.27.0",
+    "zod": "^3.25.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  },
+  "files": [
+    "build/",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
