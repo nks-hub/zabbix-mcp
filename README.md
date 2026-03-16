@@ -1,142 +1,200 @@
 # @nks-hub/zabbix-mcp
 
-[![Build](https://github.com/nks-hub/zabbix-mcp/actions/workflows/build.yml/badge.svg)](https://github.com/nks-hub/zabbix-mcp/actions/workflows/build.yml)
-[![npm version](https://img.shields.io/npm/v/%40nks-hub%2Fzabbix-mcp.svg)](https://www.npmjs.com/package/@nks-hub/zabbix-mcp)
+[![Build Status](https://github.com/nks-hub/zabbix-mcp/actions/workflows/build.yml/badge.svg)](https://github.com/nks-hub/zabbix-mcp/actions)
+[![npm version](https://img.shields.io/npm/v/@nks-hub/zabbix-mcp.svg)](https://www.npmjs.com/package/@nks-hub/zabbix-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Node.js](https://img.shields.io/badge/node-%3E%3D18-22c55e)](https://nodejs.org)
-[![MCP](https://img.shields.io/badge/MCP-Compatible-3b82f6)](https://modelcontextprotocol.io)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178c6.svg)](https://www.typescriptlang.org/)
+[![MCP SDK](https://img.shields.io/badge/MCP_SDK-1.27+-8b5cf6.svg)](https://modelcontextprotocol.io/)
 
-Model Context Protocol server for Zabbix monitoring — inspect hosts, problems, triggers, events, items, history, and acknowledge incidents from Claude Code, OpenClaw, or any MCP-compatible client.
+> MCP server for Zabbix monitoring — query hosts, problems, triggers, events, items, and history directly from Claude Code, OpenClaw, or any MCP-compatible client.
 
-## Why Zabbix MCP?
+---
 
-When infrastructure questions hit, you usually need the same answers fast:
+## Why?
 
-- Which hosts are monitored right now?
-- What problems are active today?
-- Which triggers are flapping or noisy?
-- What item/history backs the alert?
-- Can I acknowledge or annotate the event without opening the UI?
+Instead of manually clicking through the Zabbix UI, let your AI assistant inspect monitoring state directly:
 
-`@nks-hub/zabbix-mcp` turns those workflows into MCP tools so an agent can reason directly over Zabbix data instead of scraping dashboards.
+- "What broke today on our servers?"
+- "Show me active high-severity problems in the last 24 hours"
+- "Which host has this trigger and what metric caused it?"
+- "List all PVE-related alerts and acknowledge the maintenance window"
+- "Give me item history for this metric before and after the incident"
 
-## Features
+---
 
-- ✅ Host group discovery
-- ✅ Host inventory and interface detail
-- ✅ Problem event listing with time/severity filters
-- ✅ Event timeline queries
-- ✅ Trigger inspection
-- ✅ Item discovery
-- ✅ Raw item history lookup
-- ✅ Event acknowledge / message / severity / close / suppress actions
-- ✅ Supports API token auth **or** username/password login
-- ✅ Works over stdio with MCP clients
+## Quick Start
 
-## Available tools
-
-### System
-- `zabbix_health` — API connectivity smoke test
-
-### Hosts
-- `zabbix_list_host_groups` — discover host groups
-- `zabbix_list_hosts` — list monitored hosts with filters
-- `zabbix_get_host` — full host detail
-
-### Problems & events
-- `zabbix_list_problems` — inspect current/recent problems
-- `zabbix_list_events` — trigger event timeline/history
-- `zabbix_acknowledge_event` — acknowledge/add message/change severity/close/suppress
-
-### Triggers
-- `zabbix_list_triggers` — list triggers by host/group/problem state
-- `zabbix_get_trigger` — full trigger detail
-
-### Items & metrics
-- `zabbix_list_items` — discover item IDs, keys, and last values
-- `zabbix_get_item_history` — fetch raw metric history
-
-## Installation
+### Installation
 
 ```bash
 npm install -g @nks-hub/zabbix-mcp
 ```
 
-## Configuration
-
-Set either:
-
-### Option A — API token (recommended)
+Or clone and build:
 
 ```bash
-export ZABBIX_URL="https://monitor.example.com/api_jsonrpc.php"
-export ZABBIX_API_TOKEN="your-zabbix-api-token"
+git clone https://github.com/nks-hub/zabbix-mcp.git
+cd zabbix-mcp
+npm install && npm run build
 ```
 
-### Option B — username + password
+### Configuration
 
-```bash
-export ZABBIX_URL="https://monitor.example.com/api_jsonrpc.php"
-export ZABBIX_USERNAME="Admin"
-export ZABBIX_PASSWORD="your-password"
-```
+Add to your `~/.claude/settings.json` or project `.claude/settings.json`:
 
-`ZABBIX_URL` may be provided as:
-- `https://monitor.example.com/api_jsonrpc.php`
-- `https://monitor.example.com/zabbix`
-- `https://monitor.example.com`
-
-The server normalizes it to the API endpoint automatically.
-
-## Quick start
-
-### Run directly
-
-```bash
-ZABBIX_URL="https://monitor.example.com/api_jsonrpc.php" \
-ZABBIX_API_TOKEN="your-token" \
-zabbix-mcp
-```
-
-### Claude Desktop / Claude Code
+#### API token auth (recommended)
 
 ```json
 {
   "mcpServers": {
     "zabbix": {
-      "command": "zabbix-mcp",
+      "command": "npx",
+      "args": ["-y", "@nks-hub/zabbix-mcp"],
       "env": {
         "ZABBIX_URL": "https://monitor.example.com/api_jsonrpc.php",
-        "ZABBIX_API_TOKEN": "your-token"
+        "ZABBIX_API_TOKEN": "your-zabbix-api-token"
       }
     }
   }
 }
 ```
 
-### OpenClaw / mcporter-style stdio config
+#### Username + password auth
 
 ```json
 {
-  "command": "node",
-  "args": ["/full/path/to/zabbix-mcp/build/index.js"],
-  "env": {
-    "ZABBIX_URL": "https://monitor.example.com/api_jsonrpc.php",
-    "ZABBIX_API_TOKEN": "your-token"
+  "mcpServers": {
+    "zabbix": {
+      "command": "npx",
+      "args": ["-y", "@nks-hub/zabbix-mcp"],
+      "env": {
+        "ZABBIX_URL": "https://monitor.example.com/api_jsonrpc.php",
+        "ZABBIX_USERNAME": "Admin",
+        "ZABBIX_PASSWORD": "your-password"
+      }
+    }
   }
 }
 ```
 
+### Usage
+
+Ask your MCP client anything about Zabbix state. The tools become available automatically.
+
+---
+
+## Features
+
+| Feature | Description |
+|---------|-------------|
+| **11 Monitoring Tools** | Coverage for host groups, hosts, problems, events, triggers, items, metric history, and acknowledgements |
+| **Flexible Auth** | API token (recommended) or username/password login |
+| **Incident-Focused** | Optimized for "what broke today?" workflows and infra triage |
+| **History Access** | Query raw item history for root-cause analysis |
+| **Operational Actions** | Acknowledge events, add messages, suppress, close, or change severity |
+| **Response Truncation** | Auto-truncation at 25k chars to avoid context bloat |
+| **Actionable Errors** | Clear error messages that help the LLM recover quickly |
+
+---
+
+## Authentication
+
+Supports two authentication methods:
+
+| Method | Environment Variables | Use Case |
+|--------|----------------------|----------|
+| **API Token** | `ZABBIX_API_TOKEN` | Recommended for production |
+| **Username/Password** | `ZABBIX_USERNAME`, `ZABBIX_PASSWORD` | Legacy setups or quick testing |
+
+Both require `ZABBIX_URL` pointing at your Zabbix instance.
+
+`ZABBIX_URL` may be provided as any of these forms:
+
+- `https://monitor.example.com/api_jsonrpc.php`
+- `https://monitor.example.com/zabbix`
+- `https://monitor.example.com`
+
+The server normalizes it to the API endpoint automatically.
+
+---
+
+## Tools (11)
+
+### System
+| Tool | Description |
+|------|-------------|
+| `zabbix_health` | Connectivity smoke test for the configured Zabbix API |
+
+### Hosts
+| Tool | Description |
+|------|-------------|
+| `zabbix_list_host_groups` | Discover host groups |
+| `zabbix_list_hosts` | List monitored hosts with filtering |
+| `zabbix_get_host` | Full host detail including interfaces, groups, macros, and inventory |
+
+### Problems & Events
+| Tool | Description |
+|------|-------------|
+| `zabbix_list_problems` | Current/recent problem events with time, severity, and ack filters |
+| `zabbix_list_events` | Trigger event timeline/history |
+| `zabbix_acknowledge_event` | Acknowledge, annotate, close, suppress, or change event severity |
+
+### Triggers
+| Tool | Description |
+|------|-------------|
+| `zabbix_list_triggers` | List triggers by host/group/problem state |
+| `zabbix_get_trigger` | Full trigger detail with hosts, items, tags, and dependencies |
+
+### Items & Metrics
+| Tool | Description |
+|------|-------------|
+| `zabbix_list_items` | Discover item IDs, keys, state, and last value |
+| `zabbix_get_item_history` | Fetch raw metric history for a specific item |
+
+---
+
+## Common Workflows
+
+### 1. Daily incident analysis
+1. `zabbix_list_host_groups`
+2. `zabbix_list_hosts`
+3. `zabbix_list_problems` with `since`
+4. `zabbix_get_trigger` or `zabbix_get_host`
+5. `zabbix_list_items` + `zabbix_get_item_history`
+
+### 2. Acknowledge a maintenance-related alert
+1. `zabbix_list_problems`
+2. `zabbix_acknowledge_event` with `acknowledge=true` and `message`
+
+### 3. Validate a suspicious metric spike
+1. `zabbix_list_items`
+2. inspect `value_type`
+3. `zabbix_get_item_history`
+
+---
+
 ## Development
 
 ```bash
-git clone git@github.com:nks-hub/zabbix-mcp.git
-cd zabbix-mcp
+# Install dependencies
 npm install
+
+# Build
 npm run build
+
+# Watch mode
+npm run dev
+
+# Type check / build check
+npm run check
+
+# Package preview
+npm pack
 ```
 
-### Local live smoke tests
+### Live smoke tests
+
+Token-based:
 
 ```bash
 ZABBIX_URL="https://monitor.example.com/api_jsonrpc.php" \
@@ -144,7 +202,7 @@ ZABBIX_API_TOKEN="your-token" \
 node test-live.mjs
 ```
 
-Login-based test:
+Login-based:
 
 ```bash
 ZABBIX_URL="https://monitor.example.com/api_jsonrpc.php" \
@@ -153,51 +211,45 @@ ZABBIX_PASSWORD="your-password" \
 node test-login.mjs
 ```
 
-## Project structure
+---
 
-```text
-zabbix-mcp/
-├── .github/workflows/build.yml
-├── src/
-│   ├── client.ts
-│   ├── constants.ts
-│   ├── index.ts
-│   ├── utils.ts
-│   └── tools/
-│       ├── hosts.ts
-│       ├── items.ts
-│       ├── problems.ts
-│       ├── system.ts
-│       └── triggers.ts
-├── README.md
-├── LICENSE
-├── package.json
-└── tsconfig.json
-```
+## Requirements
 
-## Notes
+- **Node.js**: 18+
+- **Zabbix**: API-enabled instance (token or user auth)
 
-- `zabbix_acknowledge_event` changes production monitoring state — use it intentionally.
-- `zabbix_get_item_history` requires the correct history type (`float`, `uint`, `string`, etc.). If unsure, call `zabbix_list_items` first and inspect `value_type`.
-- `zabbix_health` intentionally avoids `apiinfo.version` with auth header because Zabbix rejects that method when authenticated.
+---
 
-## Release flow
+## Contributing
 
-Typical release flow for `nks-hub` npm MCP repos:
+Contributions are welcome! For larger changes, open an issue first.
 
-```bash
-npm version patch
-git push origin master --tags
-```
-
-GitHub Actions can then build, attach a release, and publish to npm when `NPM_TOKEN` is configured in repository secrets.
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'feat: description'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
 ## Support
 
-- Issues: https://github.com/nks-hub/zabbix-mcp/issues
-- npm: https://www.npmjs.com/package/@nks-hub/zabbix-mcp
-- Contact: dev@nks-hub.cz
+- 📧 **Email:** dev@nks-hub.cz
+- 🐛 **Bug reports:** [GitHub Issues](https://github.com/nks-hub/zabbix-mcp/issues)
+- 📖 **MCP Protocol:** [modelcontextprotocol.io](https://modelcontextprotocol.io/)
 
 ## License
 
-MIT
+MIT License — see [LICENSE](LICENSE) for details.
+
+---
+
+## Links
+
+- [Zabbix](https://www.zabbix.com/)
+- [npm Package](https://www.npmjs.com/package/@nks-hub/zabbix-mcp)
+- [@nks-hub/rybbit-mcp](https://github.com/nks-hub/rybbit-mcp) — analytics MCP server
+
+---
+
+<p align="center">
+  Made with ❤️ by <a href="https://github.com/nks-hub">NKS Hub</a>
+</p>
