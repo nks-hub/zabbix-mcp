@@ -5,7 +5,7 @@
   "type": "module",
   "main": "build/index.js",
   "bin": {
-    "zabbix-mcp": "./build/index.js"
+    "zabbix-mcp": "build/index.js"
   },
   "scripts": {
     "build": "tsc",
