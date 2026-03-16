@@ -29,8 +29,21 @@ jobs:
       - name: Pack
         run: npm pack
 
-      - name: Publish to npm
+      - name: Check if version already exists on npm
         if: startsWith(github.ref, 'refs/tags/v')
+        id: npmcheck
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "@nks-hub/zabbix-mcp@$VERSION" version >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Version $VERSION already published, skipping npm publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "Version $VERSION not published yet, continuing."
+          fi
+
+      - name: Publish to npm
+        if: startsWith(github.ref, 'refs/tags/v') && steps.npmcheck.outputs.exists != 'true'
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
