@@ -1,8 +1,8 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { DEFAULT_LIMIT, MAX_LIMIT, ZABBIX_SEVERITY_MAP } from "../constants.js";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, ZABBIX_SEVERITY_MAP } from "../constants.js";
 import { ZabbixClient } from "../client.js";
-import { pickDefined, safeError, toUnix, truncateResponse } from "../utils.js";
+import { pickDefined, safeError, toUnix, truncateResponse, resolvePagination, paginatedResponse } from "../utils.js";
 
 const severitySchema = z.enum(["not_classified", "information", "warning", "average", "high", "disaster"]);
 const severityToInt: Record<z.infer<typeof severitySchema>, number> = {
@@ -19,7 +19,7 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
     "zabbix_list_problems",
     {
       title: "List Problems",
-      description: "List current or historical Zabbix problem events with filters for host, group, severity, acknowledgement, suppression, and time window.",
+      description: "List current or historical Zabbix problem events with filters for host, group, severity, acknowledgement, suppression, and time window. Supports pagination.",
       inputSchema: {
         hostIds: z.array(z.string()).optional().describe("Host IDs to filter by"),
         groupIds: z.array(z.string()).optional().describe("Host group IDs to filter by"),
@@ -30,12 +30,14 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
         recentOnly: z.boolean().optional().describe("When true, only unresolved/recent problems"),
         since: z.string().optional().describe("Start time (ISO date/time or unix timestamp)"),
         till: z.string().optional().describe("End time (ISO date/time or unix timestamp)"),
-        limit: z.number().min(1).max(MAX_LIMIT).optional().describe(`Maximum problems to return (default: ${DEFAULT_LIMIT})`),
+        page: z.number().min(1).optional().describe("Page number (default: 1)"),
+        pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async (args) => {
       try {
+        const pg = resolvePagination(args);
         const severities = args.severity?.map((s) => severityToInt[s]);
         const data = await client.call<unknown[]>("problem.get", pickDefined({
           output: "extend",
@@ -53,7 +55,7 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
           time_till: toUnix(args.till),
           sortfield: ["eventid"],
           sortorder: "DESC",
-          limit: args.limit ?? DEFAULT_LIMIT,
+          limit: pg.limit,
         }));
 
         const normalized = data.map((item: any) => ({
@@ -61,7 +63,7 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
           severity_label: ZABBIX_SEVERITY_MAP[Number(item.severity)] ?? item.severity,
         }));
 
-        return { content: [{ type: "text" as const, text: truncateResponse(normalized) }] };
+        return { content: [{ type: "text" as const, text: paginatedResponse(normalized, pg) }] };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }
@@ -72,19 +74,21 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
     "zabbix_list_events",
     {
       title: "List Events",
-      description: "List trigger events from Zabbix. Use this for timeline/history work when problem.get is too narrow.",
+      description: "List trigger events from Zabbix. Supports pagination. Use for timeline/history work when problem.get is too narrow.",
       inputSchema: {
         hostIds: z.array(z.string()).optional().describe("Host IDs to filter by"),
         objectIds: z.array(z.string()).optional().describe("Trigger IDs to filter by"),
         search: z.string().optional().describe("Substring search against event name"),
         since: z.string().optional().describe("Start time (ISO date/time or unix timestamp)"),
         till: z.string().optional().describe("End time (ISO date/time or unix timestamp)"),
-        limit: z.number().min(1).max(MAX_LIMIT).optional().describe(`Maximum events to return (default: ${DEFAULT_LIMIT})`),
+        page: z.number().min(1).optional().describe("Page number (default: 1)"),
+        pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async (args) => {
       try {
+        const pg = resolvePagination(args);
         const data = await client.call<unknown[]>("event.get", pickDefined({
           output: "extend",
           selectAcknowledges: "extend",
@@ -98,9 +102,9 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
           time_till: toUnix(args.till),
           sortfield: ["eventid"],
           sortorder: "DESC",
-          limit: args.limit ?? DEFAULT_LIMIT,
+          limit: pg.limit,
         }));
-        return { content: [{ type: "text" as const, text: truncateResponse(data) }] };
+        return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }

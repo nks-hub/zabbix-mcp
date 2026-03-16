@@ -1,4 +1,4 @@
-import { CHARACTER_LIMIT } from "./constants.js";
+import { CHARACTER_LIMIT, DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "./constants.js";
 
 export function toUnix(value?: string): number | undefined {
   if (!value) return undefined;
@@ -52,4 +52,46 @@ export function truncateResponse(data: unknown): string {
 
 export function safeError(err: unknown): string {
   return err instanceof Error ? err.message : String(err);
+}
+
+export interface PaginationInput {
+  page?: number;
+  pageSize?: number;
+}
+
+export interface PaginationParams {
+  limit: number;
+  offset: number;
+  page: number;
+  pageSize: number;
+}
+
+export function resolvePagination(input: PaginationInput): PaginationParams {
+  const page = Math.max(1, input.page ?? 1);
+  const pageSize = Math.min(MAX_PAGE_SIZE, Math.max(1, input.pageSize ?? DEFAULT_PAGE_SIZE));
+  return {
+    limit: pageSize,
+    offset: (page - 1) * pageSize,
+    page,
+    pageSize,
+  };
+}
+
+export function paginatedResponse(data: unknown[], pagination: PaginationParams): string {
+  const hasMore = data.length === pagination.pageSize;
+  const envelope = {
+    data,
+    pagination: {
+      page: pagination.page,
+      pageSize: pagination.pageSize,
+      returned: data.length,
+      hasMore,
+      ...(hasMore ? { nextPage: pagination.page + 1 } : {}),
+    },
+  };
+  return truncateResponse(envelope);
+}
+
+export function paginatedSingleResponse(data: unknown): string {
+  return truncateResponse(data);
 }

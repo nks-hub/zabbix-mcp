@@ -1,15 +1,15 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
-import { DEFAULT_LIMIT, MAX_LIMIT } from "../constants.js";
+import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import { ZabbixClient } from "../client.js";
-import { pickDefined, safeError, truncateResponse } from "../utils.js";
+import { pickDefined, safeError, truncateResponse, resolvePagination, paginatedResponse } from "../utils.js";
 
 export function registerTriggerTools(server: McpServer, client: ZabbixClient): void {
   server.registerTool(
     "zabbix_list_triggers",
     {
       title: "List Triggers",
-      description: "List Zabbix triggers with filters for host, group, state, severity, monitored-only, and problem-only views.",
+      description: "List Zabbix triggers with filters for host, group, state, severity. Supports pagination.",
       inputSchema: {
         hostIds: z.array(z.string()).optional().describe("Host IDs to filter by"),
         groupIds: z.array(z.string()).optional().describe("Host group IDs to filter by"),
@@ -17,12 +17,14 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
         monitoredOnly: z.boolean().optional().describe("Return only monitored triggers"),
         problemOnly: z.boolean().optional().describe("Return only triggers currently in problem state"),
         severityMin: z.number().min(0).max(5).optional().describe("Minimum priority/severity 0-5"),
-        limit: z.number().min(1).max(MAX_LIMIT).optional().describe(`Maximum triggers to return (default: ${DEFAULT_LIMIT})`),
+        page: z.number().min(1).optional().describe("Page number (default: 1)"),
+        pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
     },
     async (args) => {
       try {
+        const pg = resolvePagination(args);
         const data = await client.call<unknown[]>("trigger.get", pickDefined({
           output: "extend",
           selectHosts: ["hostid", "host", "name", "status"],
@@ -35,9 +37,9 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
           min_severity: args.severityMin,
           sortfield: ["priority", "description"],
           sortorder: "DESC",
-          limit: args.limit ?? DEFAULT_LIMIT,
+          limit: pg.limit,
         }));
-        return { content: [{ type: "text" as const, text: truncateResponse(data) }] };
+        return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }

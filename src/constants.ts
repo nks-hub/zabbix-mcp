@@ -1,7 +1,7 @@
 export const CHARACTER_LIMIT = 25000;
 export const REQUEST_TIMEOUT_MS = 30000;
-export const DEFAULT_LIMIT = 250;
-export const MAX_LIMIT = 1000;
+export const DEFAULT_PAGE_SIZE = 50;
+export const MAX_PAGE_SIZE = 500;
 
 export const ZABBIX_SEVERITY_MAP: Record<number, string> = {
   0: "not_classified",
