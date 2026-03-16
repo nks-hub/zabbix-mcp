@@ -1,6 +1,6 @@
 {
   "name": "@nks-hub/zabbix-mcp",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "description": "MCP server for Zabbix monitoring: hosts, problems, triggers, events, items, and acknowledgements",
   "type": "module",
   "main": "build/index.js",
