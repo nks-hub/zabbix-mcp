@@ -38,6 +38,7 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
           sortfield: ["priority", "description"],
           sortorder: "DESC",
           limit: pg.limit,
+          offset: pg.offset,
         }));
         return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
       } catch (err) {

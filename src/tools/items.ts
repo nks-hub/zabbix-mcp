@@ -45,6 +45,7 @@ export function registerItemTools(server: McpServer, client: ZabbixClient): void
           sortfield: ["name"],
           sortorder: "ASC",
           limit: pg.limit,
+          offset: pg.offset,
         }));
         return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
       } catch (err) {
@@ -80,6 +81,7 @@ export function registerItemTools(server: McpServer, client: ZabbixClient): void
           sortfield: "clock",
           sortorder: "DESC",
           limit: pg.limit,
+          offset: pg.offset,
         }));
         return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
       } catch (err) {

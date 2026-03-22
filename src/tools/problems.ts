@@ -56,6 +56,7 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
           sortfield: ["eventid"],
           sortorder: "DESC",
           limit: pg.limit,
+          offset: pg.offset,
         }));
 
         const normalized = data.map((item: any) => ({
@@ -103,6 +104,7 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
           sortfield: ["eventid"],
           sortorder: "DESC",
           limit: pg.limit,
+          offset: pg.offset,
         }));
         return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
       } catch (err) {

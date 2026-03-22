@@ -114,8 +114,5 @@ export function normalizeZabbixUrl(raw: string): string {
   if (trimmed.endsWith("/zabbix")) {
     return `${trimmed}/api_jsonrpc.php`;
   }
-  if (trimmed.endsWith("/zabbix/")) {
-    return `${trimmed}api_jsonrpc.php`;
-  }
   return `${trimmed}/api_jsonrpc.php`;
 }

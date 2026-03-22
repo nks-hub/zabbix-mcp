@@ -26,7 +26,7 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
           sortfield: "name",
           sortorder: "ASC",
           limit: pg.limit,
-          ...(pg.offset > 0 ? { limitSelects: pg.limit } : {}),
+          offset: pg.offset,
         }));
         return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
       } catch (err) {
@@ -69,6 +69,7 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
           sortfield: ["name"],
           sortorder: "ASC",
           limit: pg.limit,
+          offset: pg.offset,
         });
 
         const data = await client.call<unknown[]>("host.get", params);
