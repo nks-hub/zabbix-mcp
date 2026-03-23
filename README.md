@@ -26,11 +26,19 @@ Instead of manually clicking through the Zabbix UI, let your AI assistant inspec
 
 ### Installation
 
+No install needed — run directly via npx:
+
+```bash
+npx -y @nks-hub/zabbix-mcp
+```
+
+Or install globally:
+
 ```bash
 npm install -g @nks-hub/zabbix-mcp
 ```
 
-Or clone and build:
+#### From source
 
 ```bash
 git clone https://github.com/nks-hub/zabbix-mcp.git
@@ -51,12 +59,18 @@ Add to your `~/.claude/settings.json` or project `.claude/settings.json`:
       "command": "npx",
       "args": ["-y", "@nks-hub/zabbix-mcp"],
       "env": {
-        "ZABBIX_URL": "https://monitor.example.com/api_jsonrpc.php",
-        "ZABBIX_API_TOKEN": "your-zabbix-api-token"
+        "ZABBIX_URL": "https://monitor.example.com",
+        "ZABBIX_API_TOKEN": "your-api-token"
       }
     }
   }
 }
+```
+
+#### CLI shorthand
+
+```bash
+claude mcp add zabbix -e ZABBIX_URL=https://monitor.example.com -e ZABBIX_API_TOKEN=your-token -- npx -y @nks-hub/zabbix-mcp
 ```
 
 #### Username + password auth
@@ -68,7 +82,7 @@ Add to your `~/.claude/settings.json` or project `.claude/settings.json`:
       "command": "npx",
       "args": ["-y", "@nks-hub/zabbix-mcp"],
       "env": {
-        "ZABBIX_URL": "https://monitor.example.com/api_jsonrpc.php",
+        "ZABBIX_URL": "https://monitor.example.com",
         "ZABBIX_USERNAME": "Admin",
         "ZABBIX_PASSWORD": "your-password"
       }
