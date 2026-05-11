@@ -1,16 +1,25 @@
 {
   "name": "@nks-hub/zabbix-mcp",
-  "version": "0.2.1",
+  "version": "0.3.1",
   "description": "MCP server for Zabbix monitoring: hosts, problems, triggers, events, items, and acknowledgements",
   "type": "module",
-  "main": "build/index.js",
+  "main": "build/server.js",
+  "types": "build/server.d.ts",
   "bin": {
     "zabbix-mcp": "build/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./build/server.d.ts",
+      "import": "./build/server.js"
+    },
+    "./cli": "./build/index.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node build/index.js",
+    "start:http": "cross-env MCP_TRANSPORT=http node build/index.js",
     "check": "npm run build"
   },
   "keywords": [
