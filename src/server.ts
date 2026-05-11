@@ -16,7 +16,7 @@ import { registerTriggerTools } from "./tools/triggers.js";
 import { registerItemTools } from "./tools/items.js";
 
 export const ZABBIX_SERVER_NAME = "zabbix-mcp";
-export const ZABBIX_SERVER_VERSION = "0.3.1";
+export const ZABBIX_SERVER_VERSION = "0.3.2";
 
 export const ZABBIX_INSTRUCTIONS =
   "Zabbix MCP server for infrastructure monitoring, incidents, host inventory, trigger analysis, and metric history. " +

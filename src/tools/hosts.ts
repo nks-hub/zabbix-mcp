@@ -4,6 +4,31 @@ import { MAX_PAGE_SIZE, DEFAULT_PAGE_SIZE } from "../constants.js";
 import { ZabbixClient } from "../client.js";
 import { pickDefined, safeError, truncateResponse, resolvePagination, paginatedResponse } from "../utils.js";
 
+const paginationOutput = {
+  page: z.number(),
+  pageSize: z.number(),
+  returned: z.number(),
+  hasMore: z.boolean(),
+  nextPage: z.number().optional(),
+};
+
+const listHostGroupsOutput = {
+  data: z.array(z.object({}).passthrough()).describe("Array of host group objects"),
+  pagination: z.object(paginationOutput),
+};
+
+const listHostsOutput = {
+  data: z.array(z.object({}).passthrough()).describe("Array of host objects with interfaces and groups"),
+  pagination: z.object(paginationOutput),
+};
+
+// Host detail returns a Zabbix host object with many fields (extend output).
+// Schema is intentionally a single-field shape; Zod default behavior strips
+// unknown keys during validation while preserving them on the actual response.
+const hostDetailOutput = {
+  hostid: z.string().optional(),
+};
+
 export function registerHostTools(server: McpServer, client: ZabbixClient): void {
   server.registerTool(
     "zabbix_list_host_groups",
@@ -15,7 +40,12 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
         page: z.number().min(1).optional().describe("Page number (default: 1)"),
         pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
+      outputSchema: listHostGroupsOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Listing host groups",
+        "openai/toolInvocation/invoked": "Listed host groups",
+      },
     },
     async (args) => {
       try {
@@ -28,7 +58,21 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
           limit: pg.limit,
           offset: pg.offset,
         }));
-        return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
+        const hasMore = data.length === pg.pageSize;
+        const envelope = {
+          data,
+          pagination: {
+            page: pg.page,
+            pageSize: pg.pageSize,
+            returned: data.length,
+            hasMore,
+            ...(hasMore ? { nextPage: pg.page + 1 } : {}),
+          },
+        };
+        return {
+          structuredContent: envelope as unknown as Record<string, unknown>,
+          content: [{ type: "text" as const, text: paginatedResponse(data, pg) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }
@@ -49,7 +93,12 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
         page: z.number().min(1).optional().describe("Page number (default: 1)"),
         pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
+      outputSchema: listHostsOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Listing hosts",
+        "openai/toolInvocation/invoked": "Listed hosts",
+      },
     },
     async (args) => {
       try {
@@ -73,7 +122,21 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
         });
 
         const data = await client.call<unknown[]>("host.get", params);
-        return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
+        const hasMore = data.length === pg.pageSize;
+        const envelope = {
+          data,
+          pagination: {
+            page: pg.page,
+            pageSize: pg.pageSize,
+            returned: data.length,
+            hasMore,
+            ...(hasMore ? { nextPage: pg.page + 1 } : {}),
+          },
+        };
+        return {
+          structuredContent: envelope as unknown as Record<string, unknown>,
+          content: [{ type: "text" as const, text: paginatedResponse(data, pg) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }
@@ -88,7 +151,12 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
       inputSchema: {
         hostId: z.string().describe("Zabbix host ID"),
       },
+      outputSchema: hostDetailOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Loading host",
+        "openai/toolInvocation/invoked": "Loaded host",
+      },
     },
     async ({ hostId }) => {
       try {
@@ -101,7 +169,11 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
           selectMacros: "extend",
           selectInventory: "extend",
         });
-        return { content: [{ type: "text" as const, text: truncateResponse(data[0] ?? null) }] };
+        const item = data[0] ?? null;
+        return {
+          structuredContent: (item ?? {}) as Record<string, unknown>,
+          content: [{ type: "text" as const, text: truncateResponse(item) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }

@@ -4,6 +4,23 @@ import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import { ZabbixClient } from "../client.js";
 import { pickDefined, safeError, truncateResponse, resolvePagination, paginatedResponse } from "../utils.js";
 
+const paginationOutput = {
+  page: z.number(),
+  pageSize: z.number(),
+  returned: z.number(),
+  hasMore: z.boolean(),
+  nextPage: z.number().optional(),
+};
+
+const listTriggersOutput = {
+  data: z.array(z.object({}).passthrough()).describe("Array of trigger objects with hosts and dependencies"),
+  pagination: z.object(paginationOutput),
+};
+
+const triggerDetailOutput = {
+  triggerid: z.string().optional(),
+};
+
 export function registerTriggerTools(server: McpServer, client: ZabbixClient): void {
   server.registerTool(
     "zabbix_list_triggers",
@@ -20,7 +37,12 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
         page: z.number().min(1).optional().describe("Page number (default: 1)"),
         pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
+      outputSchema: listTriggersOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Listing triggers",
+        "openai/toolInvocation/invoked": "Listed triggers",
+      },
     },
     async (args) => {
       try {
@@ -40,7 +62,21 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
           limit: pg.limit,
           offset: pg.offset,
         }));
-        return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
+        const hasMore = data.length === pg.pageSize;
+        const envelope = {
+          data,
+          pagination: {
+            page: pg.page,
+            pageSize: pg.pageSize,
+            returned: data.length,
+            hasMore,
+            ...(hasMore ? { nextPage: pg.page + 1 } : {}),
+          },
+        };
+        return {
+          structuredContent: envelope as unknown as Record<string, unknown>,
+          content: [{ type: "text" as const, text: paginatedResponse(data, pg) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }
@@ -55,7 +91,12 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
       inputSchema: {
         triggerId: z.string().describe("Trigger ID"),
       },
+      outputSchema: triggerDetailOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Loading trigger",
+        "openai/toolInvocation/invoked": "Loaded trigger",
+      },
     },
     async ({ triggerId }) => {
       try {
@@ -68,7 +109,11 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
           selectDependencies: "extend",
           selectDiscoveryRule: "extend",
         });
-        return { content: [{ type: "text" as const, text: truncateResponse(data[0] ?? null) }] };
+        const item = data[0] ?? null;
+        return {
+          structuredContent: (item ?? {}) as Record<string, unknown>,
+          content: [{ type: "text" as const, text: truncateResponse(item) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }

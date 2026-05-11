@@ -14,6 +14,28 @@ const severityToInt: Record<z.infer<typeof severitySchema>, number> = {
   disaster: 5,
 };
 
+const paginationOutput = {
+  page: z.number(),
+  pageSize: z.number(),
+  returned: z.number(),
+  hasMore: z.boolean(),
+  nextPage: z.number().optional(),
+};
+
+const listProblemsOutput = {
+  data: z.array(z.object({}).passthrough()).describe("Array of problem objects with severity_label added"),
+  pagination: z.object(paginationOutput),
+};
+
+const listEventsOutput = {
+  data: z.array(z.object({}).passthrough()).describe("Array of event objects with acknowledges and hosts"),
+  pagination: z.object(paginationOutput),
+};
+
+const acknowledgeEventOutput = {
+  eventids: z.array(z.string()).optional().describe("Affected event IDs returned by Zabbix"),
+};
+
 export function registerProblemTools(server: McpServer, client: ZabbixClient): void {
   server.registerTool(
     "zabbix_list_problems",
@@ -33,7 +55,12 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
         page: z.number().min(1).optional().describe("Page number (default: 1)"),
         pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
+      outputSchema: listProblemsOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Listing problems",
+        "openai/toolInvocation/invoked": "Listed problems",
+      },
     },
     async (args) => {
       try {
@@ -64,7 +91,21 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
           severity_label: ZABBIX_SEVERITY_MAP[Number(item.severity)] ?? item.severity,
         }));
 
-        return { content: [{ type: "text" as const, text: paginatedResponse(normalized, pg) }] };
+        const hasMore = normalized.length === pg.pageSize;
+        const envelope = {
+          data: normalized,
+          pagination: {
+            page: pg.page,
+            pageSize: pg.pageSize,
+            returned: normalized.length,
+            hasMore,
+            ...(hasMore ? { nextPage: pg.page + 1 } : {}),
+          },
+        };
+        return {
+          structuredContent: envelope as unknown as Record<string, unknown>,
+          content: [{ type: "text" as const, text: paginatedResponse(normalized, pg) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }
@@ -85,7 +126,12 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
         page: z.number().min(1).optional().describe("Page number (default: 1)"),
         pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
+      outputSchema: listEventsOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Listing events",
+        "openai/toolInvocation/invoked": "Listed events",
+      },
     },
     async (args) => {
       try {
@@ -106,7 +152,21 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
           limit: pg.limit,
           offset: pg.offset,
         }));
-        return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
+        const hasMore = data.length === pg.pageSize;
+        const envelope = {
+          data,
+          pagination: {
+            page: pg.page,
+            pageSize: pg.pageSize,
+            returned: data.length,
+            hasMore,
+            ...(hasMore ? { nextPage: pg.page + 1 } : {}),
+          },
+        };
+        return {
+          structuredContent: envelope as unknown as Record<string, unknown>,
+          content: [{ type: "text" as const, text: paginatedResponse(data, pg) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }
@@ -128,7 +188,12 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
         suppressUntil: z.string().optional().describe("Suppress until time (ISO date/time or unix timestamp). Use 0 for indefinite suppression."),
         unsuppress: z.boolean().optional().describe("Remove existing suppression"),
       },
+      outputSchema: acknowledgeEventOutput,
       annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Updating event",
+        "openai/toolInvocation/invoked": "Updated event",
+      },
     },
     async (args) => {
       try {
@@ -152,7 +217,11 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
           severity: args.severity ? severityToInt[args.severity] : undefined,
           suppress_until: args.suppressUntil === "0" ? 0 : toUnix(args.suppressUntil),
         }));
-        return { content: [{ type: "text" as const, text: truncateResponse(data) }] };
+        const structured = (data && typeof data === "object" ? data : { result: data }) as Record<string, unknown>;
+        return {
+          structuredContent: structured,
+          content: [{ type: "text" as const, text: truncateResponse(data) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }

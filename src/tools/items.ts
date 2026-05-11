@@ -2,7 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import { ZabbixClient } from "../client.js";
-import { pickDefined, safeError, toUnix, truncateResponse, resolvePagination, paginatedResponse } from "../utils.js";
+import { pickDefined, safeError, toUnix, resolvePagination, paginatedResponse } from "../utils.js";
 
 const historyTypeSchema = z.enum(["float", "string", "log", "uint", "text", "binary"]);
 const historyTypeToInt: Record<z.infer<typeof historyTypeSchema>, number> = {
@@ -12,6 +12,24 @@ const historyTypeToInt: Record<z.infer<typeof historyTypeSchema>, number> = {
   uint: 3,
   text: 4,
   binary: 5,
+};
+
+const paginationOutput = {
+  page: z.number(),
+  pageSize: z.number(),
+  returned: z.number(),
+  hasMore: z.boolean(),
+  nextPage: z.number().optional(),
+};
+
+const listItemsOutput = {
+  data: z.array(z.object({}).passthrough()).describe("Array of Zabbix item objects"),
+  pagination: z.object(paginationOutput),
+};
+
+const itemHistoryOutput = {
+  data: z.array(z.object({}).passthrough()).describe("Array of history rows (clock, value, ...)"),
+  pagination: z.object(paginationOutput),
 };
 
 export function registerItemTools(server: McpServer, client: ZabbixClient): void {
@@ -29,7 +47,12 @@ export function registerItemTools(server: McpServer, client: ZabbixClient): void
         page: z.number().min(1).optional().describe("Page number (default: 1)"),
         pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
+      outputSchema: listItemsOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Listing items",
+        "openai/toolInvocation/invoked": "Listed items",
+      },
     },
     async (args) => {
       try {
@@ -47,7 +70,21 @@ export function registerItemTools(server: McpServer, client: ZabbixClient): void
           limit: pg.limit,
           offset: pg.offset,
         }));
-        return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
+        const hasMore = data.length === pg.pageSize;
+        const envelope = {
+          data,
+          pagination: {
+            page: pg.page,
+            pageSize: pg.pageSize,
+            returned: data.length,
+            hasMore,
+            ...(hasMore ? { nextPage: pg.page + 1 } : {}),
+          },
+        };
+        return {
+          structuredContent: envelope as unknown as Record<string, unknown>,
+          content: [{ type: "text" as const, text: paginatedResponse(data, pg) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }
@@ -67,7 +104,12 @@ export function registerItemTools(server: McpServer, client: ZabbixClient): void
         page: z.number().min(1).optional().describe("Page number (default: 1)"),
         pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
+      outputSchema: itemHistoryOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
+      _meta: {
+        "openai/toolInvocation/invoking": "Reading history",
+        "openai/toolInvocation/invoked": "Read history",
+      },
     },
     async (args) => {
       try {
@@ -83,7 +125,21 @@ export function registerItemTools(server: McpServer, client: ZabbixClient): void
           limit: pg.limit,
           offset: pg.offset,
         }));
-        return { content: [{ type: "text" as const, text: paginatedResponse(data, pg) }] };
+        const hasMore = data.length === pg.pageSize;
+        const envelope = {
+          data,
+          pagination: {
+            page: pg.page,
+            pageSize: pg.pageSize,
+            returned: data.length,
+            hasMore,
+            ...(hasMore ? { nextPage: pg.page + 1 } : {}),
+          },
+        };
+        return {
+          structuredContent: envelope as unknown as Record<string, unknown>,
+          content: [{ type: "text" as const, text: paginatedResponse(data, pg) }],
+        };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };
       }
