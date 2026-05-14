@@ -2,7 +2,15 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE } from "../constants.js";
 import { ZabbixClient } from "../client.js";
-import { pickDefined, safeError, truncateResponse, resolvePagination, paginatedResponse } from "../utils.js";
+import {
+  pickDefined,
+  safeError,
+  truncateResponse,
+  resolvePagination,
+  buildPaginatedEnvelope,
+  lastSeenFrom,
+  rpcPaginationParams,
+} from "../utils.js";
 
 const paginationOutput = {
   page: z.number(),
@@ -10,11 +18,16 @@ const paginationOutput = {
   returned: z.number(),
   hasMore: z.boolean(),
   nextPage: z.number().optional(),
+  truncated: z.boolean().optional(),
+  droppedCount: z.number().optional(),
+  hint: z.string().optional(),
 };
 
 const listTriggersOutput = {
   data: z.array(z.object({}).passthrough()).describe("Array of trigger objects with hosts and dependencies"),
   pagination: z.object(paginationOutput),
+  lastSeen: z.object({}).passthrough().optional(),
+  query: z.object({}).passthrough().optional(),
 };
 
 const triggerDetailOutput = {
@@ -35,7 +48,12 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
         problemOnly: z.boolean().optional().describe("Return only triggers currently in problem state"),
         severityMin: z.number().min(0).max(5).optional().describe("Minimum priority/severity 0-5"),
         page: z.number().min(1).optional().describe("Page number (default: 1)"),
-        pageSize: z.number().min(1).max(MAX_PAGE_SIZE).optional().describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
+        pageSize: z
+          .number()
+          .min(1)
+          .max(MAX_PAGE_SIZE)
+          .optional()
+          .describe(`Items per page (default: ${DEFAULT_PAGE_SIZE}, max: ${MAX_PAGE_SIZE})`),
       },
       outputSchema: listTriggersOutput,
       annotations: { readOnlyHint: true, destructiveHint: false, idempotentHint: true, openWorldHint: false },
@@ -47,35 +65,39 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
     async (args) => {
       try {
         const pg = resolvePagination(args);
-        const data = await client.call<unknown[]>("trigger.get", pickDefined({
-          output: "extend",
-          selectHosts: ["hostid", "host", "name", "status"],
-          selectDependencies: "extend",
-          hostids: args.hostIds,
-          groupids: args.groupIds,
-          search: args.search ? { description: args.search } : undefined,
-          monitored: args.monitoredOnly,
-          only_true: args.problemOnly,
-          min_severity: args.severityMin,
-          sortfield: ["priority", "description"],
-          sortorder: "DESC",
-          limit: pg.limit,
-          offset: pg.offset,
-        }));
-        const hasMore = data.length === pg.pageSize;
-        const envelope = {
-          data,
-          pagination: {
-            page: pg.page,
-            pageSize: pg.pageSize,
-            returned: data.length,
-            hasMore,
-            ...(hasMore ? { nextPage: pg.page + 1 } : {}),
-          },
-        };
+        const rpcPg = rpcPaginationParams(pg, { offsetSupported: true });
+        const data = await client.call<unknown[]>(
+          "trigger.get",
+          pickDefined({
+            output: "extend",
+            selectHosts: ["hostid", "host", "name", "status"],
+            selectDependencies: "extend",
+            hostids: args.hostIds,
+            groupids: args.groupIds,
+            search: args.search ? { description: args.search } : undefined,
+            monitored: args.monitoredOnly,
+            only_true: args.problemOnly,
+            min_severity: args.severityMin,
+            sortfield: ["priority", "description"],
+            sortorder: "DESC",
+            ...rpcPg,
+          })
+        );
+        const queryEcho = pickDefined({
+          hostIds: args.hostIds,
+          groupIds: args.groupIds,
+          search: args.search,
+          monitoredOnly: args.monitoredOnly,
+          problemOnly: args.problemOnly,
+          severityMin: args.severityMin,
+        });
+        const env = buildPaginatedEnvelope(data, pg, {
+          lastSeen: lastSeenFrom(data, ["triggerid", "description", "priority"]),
+          query: Object.keys(queryEcho).length ? queryEcho : undefined,
+        });
         return {
-          structuredContent: envelope as unknown as Record<string, unknown>,
-          content: [{ type: "text" as const, text: paginatedResponse(data, pg) }],
+          structuredContent: env.structured as unknown as Record<string, unknown>,
+          content: [{ type: "text" as const, text: env.text }],
         };
       } catch (err) {
         return { content: [{ type: "text" as const, text: `Error: ${safeError(err)}` }], isError: true };

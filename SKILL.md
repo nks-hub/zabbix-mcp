@@ -83,13 +83,42 @@ Add to `~/.claude/.mcp.json` or project `.claude/settings.json`:
 
 ## 4. Complete Tool Reference
 
-All tools use JSON-RPC against the Zabbix API. Responses are auto-truncated at 25,000 characters. Paginated tools return `{ data, pagination: { page, pageSize, returned, hasMore, nextPage? } }`.
+All tools use JSON-RPC against the Zabbix API. Paginated tools return a self-describing envelope:
+
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1, "pageSize": 50, "returned": 50, "hasMore": true, "nextPage": 2,
+    "truncated": false
+  },
+  "lastSeen": { "eventid": "12345", "clock": "1715600000" },
+  "query": { "hostIds": ["10084"], "severity": ["high", "disaster"] }
+}
+```
+
+Key envelope fields (designed to survive Claude Code `/compact` and similar context-loss events):
+
+- **`pagination.truncated`** + **`droppedCount`** + **`hint`** — set when the response was binary-search-trimmed to fit the 25,000 char limit. You see *exactly* how many items were dropped and a remediation hint. No silent JSON slicing.
+- **`lastSeen`** — stable continuation reference extracted from the last item (e.g., `eventid` + `clock` for problems/events, `hostid` + `name` for hosts). Use this when paginating across sessions, or as a `since`/`till` anchor when the underlying Zabbix method does not support offset-based pagination.
+- **`query`** — echo of the resolved filter parameters that produced this page. After context loss, you can read the filter context off the response itself instead of trying to recall the original tool arguments.
+
+### Pagination caveat (per-method offset support)
+
+Zabbix RPC does **not** support `offset` uniformly. zabbix-mcp encodes this:
+
+| Method | Supports `offset`? | Pagination beyond page 1 |
+|--------|--------------------|--------------------------|
+| `host.get`, `item.get`, `trigger.get` | Yes | Standard `page`/`pageSize` |
+| `hostgroup.get`, `problem.get`, `event.get`, `history.get` | No | Page 1 only via `page`/`pageSize`; for deeper pages, narrow with filters (`since`, `till`, `hostIds`, `severity`) or use `lastSeen.eventid`/`lastSeen.clock` as a cursor anchor |
+
+Calling `page > 1` on a non-offset method returns an actionable error explaining the cursor-style alternative.
 
 ### Constants
 
 - Default page size: **50**
 - Maximum page size: **500**
-- Response character limit: **25,000**
+- Response character limit: **25,000** (binary-search-trim on data array; metadata always preserved)
 - Request timeout: **30 seconds**
 
 ---
@@ -281,18 +310,20 @@ List Zabbix items (metrics) by host/group/search. Paginated. Use this to discove
 
 ### `zabbix_get_item_history`
 
-Fetch raw metric history for a specific item over a time range. Paginated. You must provide the correct `historyType` matching the item's `value_type`.
+Fetch raw metric history for a specific item over a time range. Sorted DESC by `clock` (newest first).
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
 | `itemId` | `string` | **Yes** | Item ID |
-| `historyType` | `string` | **Yes** | History storage type: `"float"`, `"string"`, `"log"`, `"uint"`, `"text"`, `"binary"` |
+| `historyType` | `string` | **Optional** | History storage type: `"float"`, `"string"`, `"log"`, `"uint"`, `"text"`, `"binary"`. **Omit to auto-resolve** from the item's `value_type` (one extra `item.get` lookup). Pass explicitly only to override. |
 | `since` | `string` | No | Start time (ISO date/time or unix timestamp) |
 | `till` | `string` | No | End time (ISO date/time or unix timestamp) |
-| `page` | `number` | No | Page number (default: 1) |
+| `page` | `number` | No | Page number (default: 1). `history.get` does not support offset on the Zabbix side; use `till` set to the previous page's `lastSeen.clock` as a cursor for older history. |
 | `pageSize` | `number` | No | Items per page (default: 50, max: 500) |
 
-**Returns**: Array of history records sorted by clock DESC (newest first). Each record contains `{ itemid, clock, value, ns }`.
+**Returns**: Envelope with `data` (history records `{ itemid, clock, value, ns }`), `pagination`, `lastSeen: { clock, ns }`, `query` (including `historyType` and `autoResolvedHistoryType` flag), and `resolvedHistoryType` (echoed at the top level for convenience).
+
+**Tip**: When `historyType` is omitted, the resolved value appears in both `query.historyType` and `resolvedHistoryType` so you can confirm the mapping without re-deriving it from `value_type`.
 
 ## 5. Workflow Recipes
 
@@ -353,21 +384,33 @@ Response envelope:
     "pageSize": 50,
     "returned": 50,
     "hasMore": true,
-    "nextPage": 2
-  }
+    "nextPage": 2,
+    "truncated": false
+  },
+  "lastSeen": { "eventid": "12345", "clock": "1715600000" },
+  "query": { "hostIds": ["10084"], "severity": ["high"] }
 }
 ```
 
 When `hasMore` is true, request the next page to continue. When `returned < pageSize`, there are no more results.
+
+**When `pagination.truncated` is true**, the JSON exceeded the 25,000 char limit and was binary-search-trimmed. `droppedCount` and `hint` describe what was lost and how to narrow the next call.
+
+**`lastSeen`** is a stable continuation reference (e.g., `eventid` + `clock` on problems/events, `clock` + `ns` on history). Use it as a cursor anchor on Zabbix methods that do not support offset-based pagination (`problem.get`, `event.get`, `hostgroup.get`, `history.get`).
+
+**`query`** echoes the resolved filter parameters. After context loss (`/compact`, summarization), you can reconstruct the filter intent directly from the response without recalling the original arguments.
 
 ## 8. Tips & Gotchas
 
 - **Auth token is cached indefinitely** in the process. If the token expires or is revoked, restart the MCP server.
 - **API token auth is preferred** over login auth because it avoids session management and the `user.login` call.
 - **URL normalization**: You can pass the base URL (`https://host`), the Zabbix path (`https://host/zabbix`), or the full API endpoint (`https://host/api_jsonrpc.php`). All are normalized automatically.
-- **History type must match value_type**: When calling `zabbix_get_item_history`, check the item's `value_type` from `zabbix_list_items` first. Mismatched types return empty results, not errors.
-- **Response truncation**: Results exceeding 25,000 characters are automatically truncated. For arrays, the server performs a binary search to fit the maximum number of items. Use filters and smaller page sizes to get complete data.
+- **History type auto-resolved**: `zabbix_get_item_history` now resolves `historyType` from the item's `value_type` automatically. You no longer need to call `zabbix_list_items` first just to look it up. Pass `historyType` explicitly only if you need to force a different storage type (rare).
+- **Response truncation is observable, not silent**: When a response exceeds 25,000 chars, the data array is binary-search-trimmed and `pagination.truncated=true`, `pagination.droppedCount=N`, and `pagination.hint` describe the trim. The JSON envelope always remains valid.
+- **`lastSeen` is your compaction-safe cursor**: After context loss, you do not need to recall prior IDs. Read `lastSeen` off the previous envelope (e.g., `lastSeen.eventid` for problems, `lastSeen.clock` for history) and use it as the cursor anchor for the next call.
+- **`query` echo is your filter-context recovery**: The response carries back the resolved filters. After `/compact`, you can rebuild understanding of "what was being investigated" from the envelope alone.
 - **acknowledge_event is the only write operation**: All other tools are read-only. The acknowledge tool can change production monitoring state (close problems, change severity, suppress alerts) -- use deliberately.
 - **Event source filtering**: `zabbix_list_events` only returns trigger events (source=0, object=0). Internal events, discovery events, and autoregistration events are excluded.
 - **30-second timeout**: All API requests time out after 30 seconds. Large queries on busy Zabbix instances may need narrower filters.
 - **Sorting**: Problems and events are sorted newest-first (DESC by eventid/clock). Hosts, items, triggers, and host groups are sorted alphabetically by name.
+- **Offset support varies by Zabbix method** — see the table in section 4. For methods without offset support, `page > 1` returns an actionable error; use `since`/`till` + `lastSeen` as the cursor instead.
