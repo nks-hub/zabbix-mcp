@@ -25,8 +25,9 @@ export class ZabbixClient {
   constructor(private config: ZabbixConfig) {}
 
   async call<T>(method: string, params: unknown = {}): Promise<T> {
-    const isLogin = method === "user.login";
-    const auth = isLogin ? undefined : await this.getAuthTokenIfNeeded();
+    // Zabbix forbids authentication on these methods (returns -32602 otherwise).
+    const unauthenticated = method === "user.login" || method === "apiinfo.version";
+    const auth = unauthenticated ? undefined : await this.getAuthTokenIfNeeded();
 
     const body: Record<string, unknown> = {
       jsonrpc: "2.0",
@@ -44,7 +45,7 @@ export class ZabbixClient {
       Accept: "application/json",
     };
 
-    if (this.config.apiToken) {
+    if (this.config.apiToken && !unauthenticated) {
       headers.Authorization = `Bearer ${this.config.apiToken}`;
     }
 
