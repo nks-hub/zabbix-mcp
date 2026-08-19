@@ -8,7 +8,7 @@
  */
 
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { ZabbixClient, ZabbixConfig, normalizeZabbixUrl } from "./client.js";
+import { ZabbixClient, ZabbixConfig } from "./client.js";
 import { registerSystemTools } from "./tools/system.js";
 import { registerHostTools } from "./tools/hosts.js";
 import { registerProblemTools } from "./tools/problems.js";

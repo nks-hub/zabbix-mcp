@@ -13,8 +13,14 @@
  *   ZABBIX_PASSWORD    alternative auth
  *   MCP_TRANSPORT      stdio | http   (default: stdio)
  *   MCP_HTTP_PORT      default: 3000  (only when MCP_TRANSPORT=http)
- *   MCP_HTTP_HOST      default: 0.0.0.0
+ *   MCP_HTTP_HOST      default: 127.0.0.1 (the server holds a Zabbix token and
+ *                      has no auth of its own — put a reverse proxy in front
+ *                      before binding it anywhere reachable)
  *   MCP_HTTP_PATH      default: /mcp
+ *   MCP_HTTP_ALLOWED_HOSTS    comma-separated Host allowlist for DNS-rebinding
+ *                      protection (default: the configured host and localhost)
+ *   MCP_HTTP_ALLOWED_ORIGINS  comma-separated Origin allowlist (default: none,
+ *                      which rejects every browser-originated request)
  *   MCP_STATELESS      1 to disable session IDs (default: stateful)
  */
 
@@ -58,12 +64,25 @@ async function runStdio(server: McpServer): Promise<void> {
 
 async function runHttp(server: McpServer): Promise<void> {
   const port = Number(process.env.MCP_HTTP_PORT ?? 3000);
-  const host = process.env.MCP_HTTP_HOST ?? "0.0.0.0";
+  const host = process.env.MCP_HTTP_HOST ?? "127.0.0.1";
   const path = process.env.MCP_HTTP_PATH ?? "/mcp";
   const stateless = process.env.MCP_STATELESS === "1";
+  const csv = (v?: string) => v?.split(",").map((x) => x.trim()).filter(Boolean);
+
+  // Without a Host check any web page can point a DNS name at 127.0.0.1 and
+  // drive this server — which carries a Zabbix API token — from the browser.
+  const allowedHosts = csv(process.env.MCP_HTTP_ALLOWED_HOSTS) ?? [
+    `${host}:${port}`,
+    `localhost:${port}`,
+    `127.0.0.1:${port}`,
+  ];
+  const allowedOrigins = csv(process.env.MCP_HTTP_ALLOWED_ORIGINS) ?? [];
 
   const transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: stateless ? undefined : () => randomUUID(),
+    enableDnsRebindingProtection: true,
+    allowedHosts,
+    allowedOrigins,
   });
   await server.connect(transport);
 
