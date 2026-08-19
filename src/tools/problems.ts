@@ -49,7 +49,8 @@ const listEventsOutput = {
 };
 
 const acknowledgeEventOutput = {
-  eventids: z.array(z.string()).optional().describe("Affected event IDs returned by Zabbix"),
+  // Zabbix returns these as JSON numbers, not strings.
+  eventids: z.array(z.union([z.string(), z.number()])).optional().describe("Affected event IDs returned by Zabbix"),
 };
 
 export function registerProblemTools(server: McpServer, client: ZabbixClient): void {

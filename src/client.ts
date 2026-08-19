@@ -20,6 +20,7 @@ interface ZabbixRpcResponse<T> {
 
 export class ZabbixClient {
   private authToken?: string;
+  private versionPromise?: Promise<string>;
   private reqId = 1;
 
   constructor(private config: ZabbixConfig) {}
@@ -28,6 +29,9 @@ export class ZabbixClient {
     // Zabbix forbids authentication on these methods (returns -32602 otherwise).
     const unauthenticated = method === "user.login" || method === "apiinfo.version";
     const auth = unauthenticated ? undefined : await this.getAuthTokenIfNeeded();
+    // The Authorization: Bearer header only works from Zabbix 6.4 on; older
+    // servers expect the API token in the request body like a session id.
+    const bearerHeader = unauthenticated ? false : await this.supportsBearerHeader();
 
     const body: Record<string, unknown> = {
       jsonrpc: "2.0",
@@ -36,8 +40,9 @@ export class ZabbixClient {
       id: this.reqId++,
     };
 
-    if (auth) {
-      body.auth = auth;
+    const bodyAuth = auth ?? (this.config.apiToken && !unauthenticated && !bearerHeader ? this.config.apiToken : undefined);
+    if (bodyAuth) {
+      body.auth = bodyAuth;
     }
 
     const headers: Record<string, string> = {
@@ -45,7 +50,7 @@ export class ZabbixClient {
       Accept: "application/json",
     };
 
-    if (this.config.apiToken && !unauthenticated) {
+    if (this.config.apiToken && !unauthenticated && bearerHeader) {
       headers.Authorization = `Bearer ${this.config.apiToken}`;
     }
 
@@ -83,6 +88,31 @@ export class ZabbixClient {
     }
 
     return payload.result as T;
+  }
+
+  /** Cached apiinfo.version. Empty string when the server will not tell us. */
+  async version(): Promise<string> {
+    this.versionPromise ??= this.call<string>("apiinfo.version").catch(() => "");
+    return this.versionPromise;
+  }
+
+  /** Bearer-token auth over the HTTP header landed in Zabbix 6.4. */
+  private async supportsBearerHeader(): Promise<boolean> {
+    if (!this.config.apiToken) return false;
+    const [major, minor] = (await this.version()).split(".").map(Number);
+    if (!major) return true;
+    return major > 6 || (major === 6 && minor >= 4);
+  }
+
+  /**
+   * `selectGroups` was replaced by `selectHostGroups` on host.get in Zabbix 6.2.
+   * Older servers only know the former, newer ones silently ignore it and return
+   * hosts with no group data at all, so the key has to follow the server version.
+   */
+  async hostGroupsSelectKey(): Promise<"selectGroups" | "selectHostGroups"> {
+    const [major, minor] = (await this.version()).split(".").map(Number);
+    if (!major) return "selectHostGroups";
+    return major > 6 || (major === 6 && minor >= 2) ? "selectHostGroups" : "selectGroups";
   }
 
   private async getAuthTokenIfNeeded(): Promise<string | undefined> {

@@ -230,7 +230,9 @@ node test-login.mjs
 ## Requirements
 
 - **Node.js**: 18+
-- **Zabbix**: API-enabled instance (token or user auth)
+- **Zabbix**: API-enabled instance (token or user auth). Tested against 6.0, 7.0, 7.4 and 8.0.
+  On Zabbix below 6.4 the API token is sent in the request body, since those
+  versions ignore the `Authorization: Bearer` header.
 
 ---
 

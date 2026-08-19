@@ -32,7 +32,7 @@ const listTriggersOutput = {
 };
 
 const triggerDetailOutput = {
-  triggerid: z.string().optional(),
+  data: z.object({}).passthrough().describe("Zabbix trigger object, or {} when not found"),
 };
 
 export function registerTriggerTools(server: McpServer, client: ZabbixClient): void {
@@ -135,7 +135,7 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
         });
         const item = data[0] ?? null;
         return {
-          structuredContent: (item ?? {}) as Record<string, unknown>,
+          structuredContent: { data: (item ?? {}) as Record<string, unknown> },
           content: [{ type: "text" as const, text: truncateResponse(item) }],
         };
       } catch (err) {

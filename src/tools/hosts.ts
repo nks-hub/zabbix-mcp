@@ -40,7 +40,7 @@ const listHostsOutput = {
 
 // Host detail returns a Zabbix host object with many fields (extend output).
 const hostDetailOutput = {
-  hostid: z.string().optional(),
+  data: z.object({}).passthrough().describe("Zabbix host object, or {} when not found"),
 };
 
 export function registerHostTools(server: McpServer, client: ZabbixClient): void {
@@ -127,6 +127,7 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
       try {
         const pg = resolvePagination(args);
         const rpcPg = rpcPaginationParams(pg, { clientSlice: true });
+        const groupsKey = await client.hostGroupsSelectKey();
         const search = args.search || args.technicalName
           ? pickDefined({ name: args.search, host: args.technicalName })
           : undefined;
@@ -134,7 +135,7 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
         const params = pickDefined({
           output: ["hostid", "host", "name", "status", "maintenance_status", "description", "proxyid"],
           selectInterfaces: ["interfaceid", "ip", "dns", "port", "useip", "main", "type", "available"],
-          selectGroups: ["groupid", "name"],
+          [groupsKey]: ["groupid", "name"],
           groupids: args.groupIds,
           search,
           filter: args.status ? { status: args.status === "enabled" ? 0 : 1 } : undefined,
@@ -186,7 +187,7 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
         const data = await client.call<unknown[]>("host.get", {
           output: "extend",
           hostids: [hostId],
-          selectGroups: "extend",
+          [await client.hostGroupsSelectKey()]: "extend",
           selectInterfaces: "extend",
           selectTags: "extend",
           selectMacros: "extend",
@@ -194,7 +195,7 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
         });
         const item = data[0] ?? null;
         return {
-          structuredContent: (item ?? {}) as Record<string, unknown>,
+          structuredContent: { data: (item ?? {}) as Record<string, unknown> },
           content: [{ type: "text" as const, text: truncateResponse(item) }],
         };
       } catch (err) {
