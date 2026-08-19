@@ -10,6 +10,7 @@ import {
   buildPaginatedEnvelope,
   lastSeenFrom,
   rpcPaginationParams,
+  slicePage,
 } from "../utils.js";
 
 const paginationOutput = {
@@ -65,8 +66,8 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
     async (args) => {
       try {
         const pg = resolvePagination(args);
-        const rpcPg = rpcPaginationParams(pg, { offsetSupported: true });
-        const data = await client.call<unknown[]>(
+        const rpcPg = rpcPaginationParams(pg, { clientSlice: true });
+        const rows = await client.call<unknown[]>(
           "trigger.get",
           pickDefined({
             output: "extend",
@@ -83,6 +84,7 @@ export function registerTriggerTools(server: McpServer, client: ZabbixClient): v
             ...rpcPg,
           })
         );
+        const data = slicePage(rows, pg);
         const queryEcho = pickDefined({
           hostIds: args.hostIds,
           groupIds: args.groupIds,

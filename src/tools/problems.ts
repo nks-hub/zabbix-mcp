@@ -87,7 +87,7 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
     async (args) => {
       try {
         const pg = resolvePagination(args);
-        const rpcPg = rpcPaginationParams(pg, { offsetSupported: false, methodLabel: "problem.get" });
+        const rpcPg = rpcPaginationParams(pg, { clientSlice: false, methodLabel: "problem.get" });
         const severities = args.severity?.map((s) => severityToInt[s]);
         const data = await client.call<unknown[]>(
           "problem.get",
@@ -172,7 +172,7 @@ export function registerProblemTools(server: McpServer, client: ZabbixClient): v
     async (args) => {
       try {
         const pg = resolvePagination(args);
-        const rpcPg = rpcPaginationParams(pg, { offsetSupported: false, methodLabel: "event.get" });
+        const rpcPg = rpcPaginationParams(pg, { clientSlice: false, methodLabel: "event.get" });
         const data = await client.call<unknown[]>(
           "event.get",
           pickDefined({

@@ -10,6 +10,7 @@ import {
   buildPaginatedEnvelope,
   lastSeenFrom,
   rpcPaginationParams,
+  slicePage,
 } from "../utils.js";
 
 const paginationOutput = {
@@ -68,17 +69,19 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
     async (args) => {
       try {
         const pg = resolvePagination(args);
-        const rpcPg = rpcPaginationParams(pg, { offsetSupported: false, methodLabel: "hostgroup.get" });
-        const data = await client.call<unknown[]>(
+        const rpcPg = rpcPaginationParams(pg, { clientSlice: true });
+        const rows = await client.call<unknown[]>(
           "hostgroup.get",
           pickDefined({
-            output: ["groupid", "name", "flags", "internal"],
+            // `internal` was dropped from host groups in Zabbix 6.2; asking for it 400s.
+            output: ["groupid", "name", "flags", "uuid"],
             search: args.search ? { name: args.search } : undefined,
             sortfield: "name",
             sortorder: "ASC",
             ...rpcPg,
           })
         );
+        const data = slicePage(rows, pg);
         const queryEcho = pickDefined({ search: args.search });
         const env = buildPaginatedEnvelope(data, pg, {
           lastSeen: lastSeenFrom(data, ["groupid", "name"]),
@@ -123,7 +126,7 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
     async (args) => {
       try {
         const pg = resolvePagination(args);
-        const rpcPg = rpcPaginationParams(pg, { offsetSupported: true });
+        const rpcPg = rpcPaginationParams(pg, { clientSlice: true });
         const search = args.search || args.technicalName
           ? pickDefined({ name: args.search, host: args.technicalName })
           : undefined;
@@ -141,7 +144,7 @@ export function registerHostTools(server: McpServer, client: ZabbixClient): void
           ...rpcPg,
         });
 
-        const data = await client.call<unknown[]>("host.get", params);
+        const data = slicePage(await client.call<unknown[]>("host.get", params), pg);
         const queryEcho = pickDefined({
           groupIds: args.groupIds,
           search: args.search,

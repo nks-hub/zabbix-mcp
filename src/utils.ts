@@ -81,20 +81,28 @@ export function resolvePagination(input: PaginationInput): PaginationParams {
 }
 
 /**
- * Build RPC pagination parameters honoring per-method offset support.
+ * Build RPC pagination parameters.
  *
- * Several Zabbix endpoints (hostgroup.get, problem.get, event.get, history.get)
- * reject the `offset` parameter outright. For those, this helper:
- *   - omits `offset` entirely when page=1 (so the call succeeds)
- *   - throws an actionable error when page>1 (so callers know to switch to
- *     cursor-style continuation via `since`/`till` or `lastSeen.eventid`)
+ * The Zabbix API has no `offset` parameter on any `.get` method. Strict methods
+ * (hostgroup.get, problem.get, event.get, history.get) reject it with
+ * `unexpected parameter "offset"`; the rest silently ignore it and hand back
+ * page 1 again. So it is never sent.
+ *
+ *  - `clientSlice: true`  — over-fetch `offset + limit` rows under a stable sort
+ *                           and let the caller drop the leading `offset` rows.
+ *  - `clientSlice: false` — page > 1 throws, because the result set is unbounded
+ *                           and the caller must continue via a time/eventid cursor.
+ *
+ * ponytail: over-fetching costs offset+limit rows per page; fine for bounded
+ * sets (groups, hosts, triggers, items). Switch to keyset paging if someone
+ * really walks thousands of pages.
  */
 export function rpcPaginationParams(
   pg: PaginationParams,
-  options: { offsetSupported: boolean; methodLabel?: string } = { offsetSupported: true }
-): { limit: number; offset?: number } {
-  if (options.offsetSupported) {
-    return pg.offset > 0 ? { limit: pg.limit, offset: pg.offset } : { limit: pg.limit };
+  options: { clientSlice: boolean; methodLabel?: string } = { clientSlice: true }
+): { limit: number } {
+  if (options.clientSlice) {
+    return { limit: pg.offset + pg.limit };
   }
   if (pg.page > 1) {
     const label = options.methodLabel ?? "this Zabbix method";
@@ -105,6 +113,11 @@ export function rpcPaginationParams(
     );
   }
   return { limit: pg.limit };
+}
+
+/** Drop the leading `offset` rows from an over-fetched result set. */
+export function slicePage<T>(rows: T[], pg: PaginationParams): T[] {
+  return pg.offset > 0 ? rows.slice(pg.offset) : rows;
 }
 
 export interface PaginatedEnvelopeOptions {

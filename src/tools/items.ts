@@ -10,6 +10,7 @@ import {
   buildPaginatedEnvelope,
   lastSeenFrom,
   rpcPaginationParams,
+  slicePage,
 } from "../utils.js";
 
 const historyTypeSchema = z.enum(["float", "string", "log", "uint", "text", "binary"]);
@@ -113,12 +114,12 @@ export function registerItemTools(server: McpServer, client: ZabbixClient): void
     async (args) => {
       try {
         const pg = resolvePagination(args);
-        const rpcPg = rpcPaginationParams(pg, { offsetSupported: true });
+        const rpcPg = rpcPaginationParams(pg, { clientSlice: true });
         const search =
           args.search || args.keySearch
             ? pickDefined({ name: args.search, key_: args.keySearch })
             : undefined;
-        const data = await client.call<unknown[]>(
+        const rows = await client.call<unknown[]>(
           "item.get",
           pickDefined({
             output: [
@@ -144,6 +145,7 @@ export function registerItemTools(server: McpServer, client: ZabbixClient): void
             ...rpcPg,
           })
         );
+        const data = slicePage(rows, pg);
         const queryEcho = pickDefined({
           hostIds: args.hostIds,
           groupIds: args.groupIds,
@@ -203,7 +205,7 @@ export function registerItemTools(server: McpServer, client: ZabbixClient): void
     async (args) => {
       try {
         const pg = resolvePagination(args);
-        const rpcPg = rpcPaginationParams(pg, { offsetSupported: false, methodLabel: "history.get" });
+        const rpcPg = rpcPaginationParams(pg, { clientSlice: false, methodLabel: "history.get" });
         let historyType: HistoryType;
         let autoResolved = false;
         if (args.historyType) {
