@@ -49,7 +49,7 @@ export function truncateResponse(data: unknown): string {
 
   return (
     json.slice(0, CHARACTER_LIMIT - 100) +
-    `\n\n[TRUNCATED at ${CHARACTER_LIMIT} chars — single-object response too large; narrow your query]`
+    `\n\n[TRUNCATED at ${CHARACTER_LIMIT} chars - single-object response too large; narrow your query]`
   );
 }
 
@@ -88,9 +88,9 @@ export function resolvePagination(input: PaginationInput): PaginationParams {
  * `unexpected parameter "offset"`; the rest silently ignore it and hand back
  * page 1 again. So it is never sent.
  *
- *  - `clientSlice: true`  — over-fetch `offset + limit` rows under a stable sort
+ *  - `clientSlice: true`  - over-fetch `offset + limit` rows under a stable sort
  *                           and let the caller drop the leading `offset` rows.
- *  - `clientSlice: false` — page > 1 throws, because the result set is unbounded
+ *  - `clientSlice: false` - page > 1 throws, because the result set is unbounded
  *                           and the caller must continue via a time/eventid cursor.
  *
  * ponytail: over-fetching costs offset+limit rows per page; fine for bounded

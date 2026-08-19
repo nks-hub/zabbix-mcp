@@ -14,8 +14,8 @@ const client = new Client({ name: 'zabbix-mcp-pagination', version: '1.0.0' }, {
 await client.connect(transport);
 
 let failed = 0;
-const ok = (label, extra = '') => console.log(`  PASS  ${label}${extra ? ' — ' + extra : ''}`);
-const bad = (label, why) => { failed++; console.log(`  FAIL  ${label} — ${why}`); };
+const ok = (label, extra = '') => console.log(`  PASS  ${label}${extra ? ' - ' + extra : ''}`);
+const bad = (label, why) => { failed++; console.log(`  FAIL  ${label} - ${why}`); };
 
 async function call(name, args) {
   const r = await client.callTool({ name, arguments: args });
@@ -64,8 +64,8 @@ for (const [name, args, key] of paged) {
   const p2 = await call(name, { ...args, pageSize: 2, page: 2 });
   if (p1.isError || p2.isError) { bad(`${name} page 2`, (p1.text || p2.text).slice(0, 160)); continue; }
   const a = idsOf(p1, key), b = idsOf(p2, key);
-  if (!a.length) { console.log(`  SKIP  ${name} page 2 — no data`); continue; }
-  if (!b.length) { console.log(`  SKIP  ${name} page 2 — only one page of data`); continue; }
+  if (!a.length) { console.log(`  SKIP  ${name} page 2 - no data`); continue; }
+  if (!b.length) { console.log(`  SKIP  ${name} page 2 - only one page of data`); continue; }
   if (a.join(',') === b.join(',')) bad(`${name} page 2`, `identical to page 1 (${a.join(',')})`);
   else ok(`${name} page 2`, `[${a.join(',')}] then [${b.join(',')}]`);
 }
@@ -74,7 +74,7 @@ if (hostId) {
   const p2 = await call('zabbix_list_items', { hostIds: [hostId], pageSize: 2, page: 2 });
   const a = idsOf(p1, 'itemid'), b = idsOf(p2, 'itemid');
   if (p1.isError || p2.isError) bad('zabbix_list_items page 2', (p1.text || p2.text).slice(0, 160));
-  else if (!b.length) console.log('  SKIP  zabbix_list_items page 2 — only one page of data');
+  else if (!b.length) console.log('  SKIP  zabbix_list_items page 2 - only one page of data');
   else if (a.join(',') === b.join(',')) bad('zabbix_list_items page 2', 'identical to page 1');
   else ok('zabbix_list_items page 2', `[${a.join(',')}] then [${b.join(',')}]`);
 }

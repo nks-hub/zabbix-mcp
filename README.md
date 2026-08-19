@@ -4,7 +4,7 @@
 [![npm version](https://img.shields.io/npm/v/@nks-hub/zabbix-mcp.svg)](https://www.npmjs.com/package/@nks-hub/zabbix-mcp)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178c6.svg)](https://www.typescriptlang.org/)
-[![MCP SDK](https://img.shields.io/badge/MCP_SDK-1.27+-8b5cf6.svg)](https://modelcontextprotocol.io/)
+[![MCP SDK](https://img.shields.io/badge/MCP_SDK-1.30+-8b5cf6.svg)](https://modelcontextprotocol.io/)
 
 > MCP server for Zabbix monitoring — query hosts, problems, triggers, events, items, and history directly from Claude Code, OpenClaw, or any MCP-compatible client.
 

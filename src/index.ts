@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * Zabbix MCP — CLI entrypoint.
+ * Zabbix MCP - CLI entrypoint.
  *
  * Transports:
- *   stdio (default) — for local Claude Desktop / Claude Code use
- *   http            — Streamable HTTP for remote hosting (gateway / ChatGPT)
+ *   stdio (default) - for local Claude Desktop / Claude Code use
+ *   http            - Streamable HTTP for remote hosting (gateway / ChatGPT)
  *
  * Environment:
  *   ZABBIX_URL         required, e.g. https://zabbix.example.com
@@ -14,7 +14,7 @@
  *   MCP_TRANSPORT      stdio | http   (default: stdio)
  *   MCP_HTTP_PORT      default: 3000  (only when MCP_TRANSPORT=http)
  *   MCP_HTTP_HOST      default: 127.0.0.1 (the server holds a Zabbix token and
- *                      has no auth of its own — put a reverse proxy in front
+ *                      has no auth of its own - put a reverse proxy in front
  *                      before binding it anywhere reachable)
  *   MCP_HTTP_PATH      default: /mcp
  *   MCP_HTTP_ALLOWED_HOSTS    comma-separated Host allowlist for DNS-rebinding
@@ -70,7 +70,7 @@ async function runHttp(server: McpServer): Promise<void> {
   const csv = (v?: string) => v?.split(",").map((x) => x.trim()).filter(Boolean);
 
   // Without a Host check any web page can point a DNS name at 127.0.0.1 and
-  // drive this server — which carries a Zabbix API token — from the browser.
+  // drive this server - which carries a Zabbix API token - from the browser.
   const allowedHosts = csv(process.env.MCP_HTTP_ALLOWED_HOSTS) ?? [
     `${host}:${port}`,
     `localhost:${port}`,

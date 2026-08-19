@@ -1,5 +1,5 @@
 // Cross-version compatibility sweep: every tool, against whatever Zabbix ZABBIX_URL points at.
-// Set PROBE_ACK=1 to also exercise zabbix_acknowledge_event — it writes a comment onto a real
+// Set PROBE_ACK=1 to also exercise zabbix_acknowledge_event - it writes a comment onto a real
 // event, so leave it unset against anything you care about.
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
@@ -16,8 +16,8 @@ const call = async (n, a = {}) => {
   } catch (e) { return { err: true, text: String(e).replace(/\s+/g, ' ').slice(0, 160) }; }
 };
 const check = (label, okCond, detail) => {
-  if (okCond) console.log(`  PASS  ${label}${detail ? ' — ' + detail : ''}`);
-  else { failed++; console.log(`  FAIL  ${label} — ${detail}`); }
+  if (okCond) console.log(`  PASS  ${label}${detail ? ' - ' + detail : ''}`);
+  else { failed++; console.log(`  FAIL  ${label} - ${detail}`); }
 };
 const probe = async (label, name, args) => { const r = await call(name, args); check(label, !r.err, r.text); return r; };
 
@@ -53,8 +53,8 @@ const itemId = items?.s?.data?.[0]?.itemid;
 if (itemId) await probe('zabbix_get_item_history', 'zabbix_get_item_history', { itemId, limit: 2 });
 
 const evId = events.s?.data?.[0]?.eventid;
-if (!evId) console.log('  SKIP  zabbix_acknowledge_event — no event to write to');
-else if (!process.env.PROBE_ACK) console.log('  SKIP  zabbix_acknowledge_event — PROBE_ACK unset (it comments on a real event)');
+if (!evId) console.log('  SKIP  zabbix_acknowledge_event - no event to write to');
+else if (!process.env.PROBE_ACK) console.log('  SKIP  zabbix_acknowledge_event - PROBE_ACK unset (it comments on a real event)');
 else await probe('zabbix_acknowledge_event', 'zabbix_acknowledge_event', { eventIds: [evId], message: 'zabbix-mcp compat probe' });
 
 await c.close();
