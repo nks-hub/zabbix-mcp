@@ -2,15 +2,12 @@
 
 [![Build Status](https://github.com/nks-hub/zabbix-mcp/actions/workflows/build.yml/badge.svg)](https://github.com/nks-hub/zabbix-mcp/actions)
 [![npm version](https://img.shields.io/npm/v/@nks-hub/zabbix-mcp.svg)](https://www.npmjs.com/package/@nks-hub/zabbix-mcp)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Node.js](https://img.shields.io/badge/Node.js-18+-339933.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178c6.svg)](https://www.typescriptlang.org/)
 [![MCP SDK](https://img.shields.io/badge/MCP_SDK-1.30+-8b5cf6.svg)](https://modelcontextprotocol.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 > MCP server for Zabbix monitoring — query hosts, problems, triggers, events, items, and history directly from Claude Code, OpenClaw, or any MCP-compatible client.
-
----
-
-## Why?
 
 Instead of manually clicking through the Zabbix UI, let your AI assistant inspect monitoring state directly:
 
@@ -20,11 +17,24 @@ Instead of manually clicking through the Zabbix UI, let your AI assistant inspec
 - "List all PVE-related alerts and acknowledge the maintenance window"
 - "Give me item history for this metric before and after the incident"
 
----
+## Features
 
-## Quick Start
+- 🛠️ **11 Monitoring Tools** - Coverage for host groups, hosts, problems, events, triggers, items, metric history, and acknowledgements
+- 🔑 **Flexible Auth** - API token (recommended) or username/password login
+- 🚨 **Incident-Focused** - Optimized for "what broke today?" workflows and infra triage
+- 📈 **History Access** - Query raw item history for root-cause analysis
+- ✅ **Operational Actions** - Acknowledge events, add messages, suppress, close, or change severity
+- ✂️ **Response Truncation** - Auto-truncation at 25k chars to avoid context bloat
+- 💬 **Actionable Errors** - Clear error messages that help the LLM recover quickly
 
-### Installation
+## Requirements
+
+- **Node.js**: 18+
+- **Zabbix**: API-enabled instance (token or user auth). Tested against 6.0, 7.0, 7.4 and 8.0.
+  On Zabbix below 6.4 the API token is sent in the request body, since those
+  versions ignore the `Authorization: Bearer` header.
+
+## Installation
 
 No install needed — run directly via npx:
 
@@ -38,7 +48,7 @@ Or install globally:
 npm install -g @nks-hub/zabbix-mcp
 ```
 
-#### From source
+### From source
 
 ```bash
 git clone https://github.com/nks-hub/zabbix-mcp.git
@@ -46,11 +56,11 @@ cd zabbix-mcp
 npm install && npm run build
 ```
 
-### Configuration
+## Configuration
 
 Add to your `~/.claude/settings.json` or project `.claude/settings.json`:
 
-#### API token auth (recommended)
+### API token auth (recommended)
 
 ```json
 {
@@ -67,13 +77,13 @@ Add to your `~/.claude/settings.json` or project `.claude/settings.json`:
 }
 ```
 
-#### CLI shorthand
+### CLI shorthand
 
 ```bash
 claude mcp add zabbix -e ZABBIX_URL=https://monitor.example.com -e ZABBIX_API_TOKEN=your-token -- npx -y @nks-hub/zabbix-mcp
 ```
 
-#### Username + password auth
+### Username + password auth
 
 ```json
 {
@@ -91,25 +101,9 @@ claude mcp add zabbix -e ZABBIX_URL=https://monitor.example.com -e ZABBIX_API_TO
 }
 ```
 
-### Usage
+## Usage
 
 Ask your MCP client anything about Zabbix state. The tools become available automatically.
-
----
-
-## Features
-
-| Feature | Description |
-|---------|-------------|
-| **11 Monitoring Tools** | Coverage for host groups, hosts, problems, events, triggers, items, metric history, and acknowledgements |
-| **Flexible Auth** | API token (recommended) or username/password login |
-| **Incident-Focused** | Optimized for "what broke today?" workflows and infra triage |
-| **History Access** | Query raw item history for root-cause analysis |
-| **Operational Actions** | Acknowledge events, add messages, suppress, close, or change severity |
-| **Response Truncation** | Auto-truncation at 25k chars to avoid context bloat |
-| **Actionable Errors** | Clear error messages that help the LLM recover quickly |
-
----
 
 ## Authentication
 
@@ -129,8 +123,6 @@ Both require `ZABBIX_URL` pointing at your Zabbix instance.
 - `https://monitor.example.com`
 
 The server normalizes it to the API endpoint automatically.
-
----
 
 ## Tools (11)
 
@@ -165,8 +157,6 @@ The server normalizes it to the API endpoint automatically.
 | `zabbix_list_items` | Discover item IDs, keys, state, and last value |
 | `zabbix_get_item_history` | Fetch raw metric history for a specific item |
 
----
-
 ## Common Workflows
 
 ### 1. Daily incident analysis
@@ -185,7 +175,11 @@ The server normalizes it to the API endpoint automatically.
 2. inspect `value_type`
 3. `zabbix_get_item_history`
 
----
+## Links
+
+- [Zabbix](https://www.zabbix.com/)
+- [npm Package](https://www.npmjs.com/package/@nks-hub/zabbix-mcp)
+- [@nks-hub/rybbit-mcp](https://github.com/nks-hub/rybbit-mcp) — analytics MCP server
 
 ## Development
 
@@ -225,17 +219,6 @@ ZABBIX_PASSWORD="your-password" \
 node test-login.mjs
 ```
 
----
-
-## Requirements
-
-- **Node.js**: 18+
-- **Zabbix**: API-enabled instance (token or user auth). Tested against 6.0, 7.0, 7.4 and 8.0.
-  On Zabbix below 6.4 the API token is sent in the request body, since those
-  versions ignore the `Authorization: Bearer` header.
-
----
-
 ## Contributing
 
 Contributions are welcome! For larger changes, open an issue first.
@@ -255,14 +238,6 @@ Contributions are welcome! For larger changes, open an issue first.
 ## License
 
 MIT License — see [LICENSE](LICENSE) for details.
-
----
-
-## Links
-
-- [Zabbix](https://www.zabbix.com/)
-- [npm Package](https://www.npmjs.com/package/@nks-hub/zabbix-mcp)
-- [@nks-hub/rybbit-mcp](https://github.com/nks-hub/rybbit-mcp) — analytics MCP server
 
 ---
 
