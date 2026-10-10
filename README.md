@@ -7,9 +7,9 @@
 [![MCP SDK](https://img.shields.io/badge/MCP_SDK-1.30+-8b5cf6.svg)](https://modelcontextprotocol.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-> MCP server for Zabbix monitoring — query hosts, problems, triggers, events, items, and history directly from Claude Code, OpenClaw, or any MCP-compatible client.
+> MCP server for Zabbix monitoring: query hosts, problems, triggers, events, items, and history directly from Claude Code, OpenClaw, or any MCP-compatible client.
 
-Instead of manually clicking through the Zabbix UI, let your AI assistant inspect monitoring state directly:
+Questions an AI assistant can answer with it:
 
 - "What broke today on our servers?"
 - "Show me active high-severity problems in the last 24 hours"
@@ -19,13 +19,13 @@ Instead of manually clicking through the Zabbix UI, let your AI assistant inspec
 
 ## Features
 
-- 🛠️ **11 Monitoring Tools** - Coverage for host groups, hosts, problems, events, triggers, items, metric history, and acknowledgements
-- 🔑 **Flexible Auth** - API token (recommended) or username/password login
-- 🚨 **Incident-Focused** - Optimized for "what broke today?" workflows and infra triage
-- 📈 **History Access** - Query raw item history for root-cause analysis
-- ✅ **Operational Actions** - Acknowledge events, add messages, suppress, close, or change severity
-- ✂️ **Response Truncation** - Auto-truncation at 25k chars to avoid context bloat
-- 💬 **Actionable Errors** - Clear error messages that help the LLM recover quickly
+- 🛠️ **11 tools** - Host groups, hosts, problems, events, triggers, items, metric history and acknowledgements
+- 🔑 **Token or login auth** - API token or username/password
+- 🚨 **Problem queries** - Current and recent problems filtered by time (`since`), severity and acknowledgement
+- 📈 **Metric history** - Raw item history, for example before and after an incident
+- ✅ **Event actions** - Acknowledge events, add messages, suppress, close or change severity
+- ✂️ **Response truncation** - Responses over 25,000 characters are cut and carry a hint with the number of items returned and how to narrow the query
+- 💬 **Error messages** - Timeouts (30 s), HTTP errors and Zabbix RPC errors reach the client with the status or RPC code and message
 
 ## Requirements
 
@@ -36,7 +36,7 @@ Instead of manually clicking through the Zabbix UI, let your AI assistant inspec
 
 ## Installation
 
-No install needed — run directly via npx:
+Run it with npx without installing:
 
 ```bash
 npx -y @nks-hub/zabbix-mcp
@@ -103,16 +103,14 @@ claude mcp add zabbix -e ZABBIX_URL=https://monitor.example.com -e ZABBIX_API_TO
 
 ## Usage
 
-Ask your MCP client anything about Zabbix state. The tools become available automatically.
+Once configured, the MCP client sees the tools listed below and calls them when you ask about Zabbix state.
 
 ## Authentication
 
-Supports two authentication methods:
-
-| Method | Environment Variables | Use Case |
+| Method | Environment variables | Use case |
 |--------|----------------------|----------|
-| **API Token** | `ZABBIX_API_TOKEN` | Recommended for production |
-| **Username/Password** | `ZABBIX_USERNAME`, `ZABBIX_PASSWORD` | Legacy setups or quick testing |
+| API token | `ZABBIX_API_TOKEN` | Recommended for production |
+| Username/password | `ZABBIX_USERNAME`, `ZABBIX_PASSWORD` | Legacy setups or quick testing |
 
 Both require `ZABBIX_URL` pointing at your Zabbix instance.
 
@@ -122,7 +120,7 @@ Both require `ZABBIX_URL` pointing at your Zabbix instance.
 - `https://monitor.example.com/zabbix`
 - `https://monitor.example.com`
 
-The server normalizes it to the API endpoint automatically.
+The server normalizes it to the API endpoint.
 
 ## Tools (11)
 
@@ -138,7 +136,7 @@ The server normalizes it to the API endpoint automatically.
 | `zabbix_list_hosts` | List monitored hosts with filtering |
 | `zabbix_get_host` | Full host detail including interfaces, groups, macros, and inventory |
 
-### Problems & Events
+### Problems and events
 | Tool | Description |
 |------|-------------|
 | `zabbix_list_problems` | Current/recent problem events with time, severity, and ack filters |
@@ -151,13 +149,13 @@ The server normalizes it to the API endpoint automatically.
 | `zabbix_list_triggers` | List triggers by host/group/problem state |
 | `zabbix_get_trigger` | Full trigger detail with hosts, items, tags, and dependencies |
 
-### Items & Metrics
+### Items and metrics
 | Tool | Description |
 |------|-------------|
 | `zabbix_list_items` | Discover item IDs, keys, state, and last value |
 | `zabbix_get_item_history` | Fetch raw metric history for a specific item |
 
-## Common Workflows
+## Common workflows
 
 ### 1. Daily incident analysis
 1. `zabbix_list_host_groups`
@@ -178,8 +176,8 @@ The server normalizes it to the API endpoint automatically.
 ## Links
 
 - [Zabbix](https://www.zabbix.com/)
-- [npm Package](https://www.npmjs.com/package/@nks-hub/zabbix-mcp)
-- [@nks-hub/rybbit-mcp](https://github.com/nks-hub/rybbit-mcp) — analytics MCP server
+- [npm package](https://www.npmjs.com/package/@nks-hub/zabbix-mcp)
+- [@nks-hub/rybbit-mcp](https://github.com/nks-hub/rybbit-mcp): analytics MCP server
 
 ## Development
 
