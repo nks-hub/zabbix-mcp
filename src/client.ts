@@ -138,7 +138,9 @@ export class ZabbixClient {
 }
 
 export function normalizeZabbixUrl(raw: string): string {
-  const trimmed = raw.trim().replace(/\/+$/, "");
+  // A loop, not /\/+$/: that regex rescans every run of slashes and is quadratic.
+  let trimmed = raw.trim();
+  while (trimmed.endsWith("/")) trimmed = trimmed.slice(0, -1);
   if (trimmed.endsWith("/api_jsonrpc.php")) {
     return trimmed;
   }

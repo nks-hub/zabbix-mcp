@@ -20,7 +20,8 @@
     "dev": "tsc --watch",
     "start": "node build/index.js",
     "start:http": "cross-env MCP_TRANSPORT=http node build/index.js",
-    "check": "npm run build"
+    "check": "npm run build",
+    "test": "node test-normalize-url.mjs"
   },
   "keywords": [
     "mcp",
